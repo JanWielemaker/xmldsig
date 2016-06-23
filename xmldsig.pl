@@ -10,6 +10,7 @@
 /** <module> XML Digital signature
 
 @see http://www.di-mgt.com.au/xmldsig.html
+@see http://stackoverflow.com/questions/5576777/whats-the-difference-between-nid-sha-and-nid-sha1-in-openssl
 */
 
 xmldsig_ns('http://www.w3.org/2000/09/xmldsig#').
@@ -97,14 +98,16 @@ signed_info_dom(Hash, SDOM, _Options) :-
 %%	rsa_signature(+SignedInfo:string, -Signature, +Options)
 
 rsa_signature(SignedInfo, Signature, Options) :-
-	sha_hash(SignedInfo, DigestCodes, [algrithm(sha1)]),
-	hash_atom(DigestCodes, Hex),
-	string_upper(Hex, Digest),
-	debug(xmldsig, 'SignedInfo SHA1 digest = ~p', [Digest]),
+	sha_hash(SignedInfo, Digest, [algorithm(sha1)]),
+	hash_atom(Digest, Hex),
+	string_upper(Hex, HEX),
+	debug(xmldsig, 'SignedInfo SHA1 digest = ~p', [HEX]),
 	private_key(Key, Options),
 	rsa_sign(Key, Digest, String,
-		 [ type(md5_sha1)
+		 [ type(sha1)
 		 ]),
+	string_length(String, Len),
+	debug(xmldsig, 'RSA signatute length: ~p', [Len]),
 	string_codes(String, Codes),
 	phrase(base64(Codes), Codes64),
 	string_codes(Signature, Codes64).
