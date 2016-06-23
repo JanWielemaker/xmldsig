@@ -10,6 +10,7 @@
 /** <module> XML Digital signature
 
 @see http://www.di-mgt.com.au/xmldsig.html
+@see https://www.bmt-online.org/geekisms/RSA_verify
 @see http://stackoverflow.com/questions/5576777/whats-the-difference-between-nid-sha-and-nid-sha1-in-openssl
 */
 
@@ -104,7 +105,8 @@ rsa_signature(SignedInfo, Signature, Options) :-
 	debug(xmldsig, 'SignedInfo SHA1 digest = ~p', [HEX]),
 	private_key(Key, Options),
 	rsa_sign(Key, Digest, String,
-		 [ type(sha1)
+		 [ type(sha1),
+		   encoding(octet)
 		 ]),
 	string_length(String, Len),
 	debug(xmldsig, 'RSA signatute length: ~p', [Len]),
