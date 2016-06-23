@@ -6,6 +6,7 @@
 :- use_module(library(ssl)).
 :- use_module(library(base64)).
 :- use_module(library(debug)).
+:- use_module(library(dcg/basics)).
 :- use_module('../c14n2/c14n2').
 
 /** <module> XML Digital signature
@@ -15,6 +16,8 @@ This library deals with _XMLDSIG_, RSA signed XML documents.
 @see http://www.di-mgt.com.au/xmldsig.html
 @see https://www.bmt-online.org/geekisms/RSA_verify
 @see http://stackoverflow.com/questions/5576777/whats-the-difference-between-nid-sha-and-nid-sha1-in-openssl
+
+@tbd Add signature validation
 */
 
 xmldsig_ns('http://www.w3.org/2000/09/xmldsig#').
@@ -27,6 +30,12 @@ xmldsig_ns('http://www.w3.org/2000/09/xmldsig#').
 %	  File holding the private key needed to sign
 %	  - key_password(+Password)
 %	  String holding the password to op the private key.
+%
+%	The   SignedDOM   must   be   emitted   using   xml_write/3   or
+%	xml_write_canonical/2.  If  xml_write/3  is   used,  the  option
+%	layout(false) is needed to avoid  changing   the  layout  of the
+%	=SignedInfo= element and the signed DOM,   which  will cause the
+%	signature to be invalid.
 
 xmld_signed_DOM(DOM, SignedDOM, Options) :-
 	dom_hash(DOM, ODOM, Hash, Options),
