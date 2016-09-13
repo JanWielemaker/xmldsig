@@ -2,7 +2,6 @@
 
 Prototype implementation for XML digital signatures.
 
-  - Currently only implements signing, no verification
   - Requires current GIT version of [swipl-devel](https://github.com/SWI-Prolog/swipl-devel)
   - Requires [c14n2](https://github.com/JanWielemaker/c14n2).
 
