@@ -231,7 +231,7 @@ xmld_verify_signature(DOM, SignatureDOM, Certificate, Options) :-
         base64(RawSignature, Signature),
         ( Algorithm = rsa(HashType)->
             with_output_to(string(C14N), xml_write_canonical(current_output, SignedInfo, [method(CanonicalizationMethod)|Options])),
-	    sha_hash(C14N, HashCodes, [algorithm(HashType)]),
+            sha_hash(C14N, HashCodes, [algorithm(HashType)]),
 	    string_codes(Digest, HashCodes),
             rsa_verify(PublicKey, Digest, RawSignature, [type(HashType), encoding(octet)])
 	; domain_error(supported_signature_algorithm, Algorithm)
@@ -261,10 +261,14 @@ ssl_algorithm('http://www.w3.org/2001/04/xmldsig-more#esign-sha384', esign(sha38
 ssl_algorithm('http://www.w3.org/2001/04/xmldsig-more#esign-sha512', esign(sha512)).
 
 digest_method('http://www.w3.org/2000/09/xmldsig#sha1', sha1).
+digest_method('http://www.w3.org/2001/04/xmlenc#sha256', sha256).
 
 signature_info(DOM, Signature, SignedData, Algorithm, SignatureValue, PublicKey, Certificate, CanonicalizationMethod):-
         xmldsig_ns(NSRef),
-        memberchk(element(ns(_, NSRef):'SignatureValue', _, [SignatureValue]), Signature),
+        memberchk(element(ns(_, NSRef):'SignatureValue', _, [RawSignatureValue]), Signature),
+        atom_codes(RawSignatureValue, RawSignatureCodes),
+        delete_newlines(RawSignatureCodes, SignatureCodes),
+        string_codes(SignatureValue, SignatureCodes),
         memberchk(element(ns(_, NSRef):'SignedInfo', SignedInfoAttributes, SignedInfo), Signature),
         SignedData = element(ns(_, NSRef):'SignedInfo', SignedInfoAttributes, SignedInfo),
         memberchk(element(ns(_, NSRef):'CanonicalizationMethod', CanonicalizationMethodAttributes, _), SignedInfo),
@@ -279,7 +283,7 @@ signature_info(DOM, Signature, SignedData, Algorithm, SignatureValue, PublicKey,
         memberchk(element(ns(_, NSRef):'KeyInfo', _, KeyInfo), Signature),
         ( memberchk(element(ns(_, NSRef):'X509Data', _, X509Data), KeyInfo),
           memberchk(element(ns(_, NSRef):'X509Certificate', _, [X509Certificate]), X509Data)->
-	    normalize_space(string(TrimmedCertificate), X509Certificate),
+            normalize_space(string(TrimmedCertificate), X509Certificate),
 	    format(string(CompleteCertificate), '-----BEGIN CERTIFICATE-----\n~s\n-----END CERTIFICATE-----', [TrimmedCertificate]),
 	    setup_call_cleanup(open_string(CompleteCertificate, X509Stream),
 			       load_certificate(X509Stream, Certificate),
@@ -289,12 +293,18 @@ signature_info(DOM, Signature, SignedData, Algorithm, SignatureValue, PublicKey,
         ).
 
 
+delete_newlines([], []):- !.
+delete_newlines([13|As], B):- !, delete_newlines(As, B).
+delete_newlines([10|As], B):- !, delete_newlines(As, B).
+delete_newlines([A|As], [A|B]):- !, delete_newlines(As, B).
+
+
 verify_digest(ReferenceAttributes, Reference, DOM):-
         xmldsig_ns(NSRef),
         memberchk('URI'=URI, ReferenceAttributes),
         atom_concat('#', Id, URI),
         % Find the relevant bit of the DOM
-        resolve_reference(DOM, Id, Digestible, NSMap),
+        resolve_reference(DOM, Id, Digestible, _NSMap),
         (  memberchk(element(ns(_, NSRef):'Transforms', _, Transforms), Reference)
         -> findall(TransformAttributes-Transform,
                    member(element(ns(_, NSRef):'Transform', TransformAttributes, Transform), Transforms),
@@ -305,8 +315,11 @@ verify_digest(ReferenceAttributes, Reference, DOM):-
         memberchk(element(ns(_, NSRef):'DigestMethod', DigestMethodAttributes, _), Reference),
         memberchk(element(ns(_, NSRef):'DigestValue', _, [DigestBase64]), Reference),
         memberchk('Algorithm'=Algorithm, DigestMethodAttributes),
-        digest_method(Algorithm, DigestMethod),
-        with_output_to(string(XMLString), xml_write_canonical(current_output, TransformedDigestible, [nsmap(NSMap)])),
+        (  digest_method(Algorithm, DigestMethod)
+        -> true
+        ;  domain_error(supported_digest_method, DigestMethod)
+        ),
+        with_output_to(string(XMLString), xml_write_canonical(current_output, TransformedDigestible, [])),
         sha_hash(XMLString, DigestBytes, [algorithm(DigestMethod)]),
         base64(ExpectedDigest, DigestBase64),
         atom_codes(ExpectedDigest, ExpectedDigestBytes),
@@ -335,6 +348,8 @@ apply_transforms([Attributes-Children|Transforms], In, Out):-
         ;  existence_error(transform_algorithm, Algorithm)
         ),
         apply_transforms(Transforms, I1, Out).
+
+apply_transform('http://www.w3.org/2001/10/xml-exc-c14n#', [], X, X).
 
 apply_transform('http://www.w3.org/2000/09/xmldsig#enveloped-signature', [], element(Tag, Attributes, Children), element(Tag, Attributes, NewChildren)):-
         delete_signature_element(Children, NewChildren).
